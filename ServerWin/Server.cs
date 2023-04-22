@@ -1,28 +1,44 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace ServerWin
 {
     public class Server
     {
-        public static uint u_iMaxBuffers { get; private set; } = 15;
+        public static int c_u_iDefaultPort { get; } = 6680;
+        public static IPAddress c_ipaddrDefaultIpAddress { get; } = IPAddress.IPv6Any;
 
+        public static uint u_iMaxBuffers { get; private set; } = 5;
 
         // Configs
         public int iScreenWidth { get; private set; }
         public int iScreenHeight { get; private set; }
         public int iScreenRefreshRate { get; private set; }
 
+        public int iServerPort;
+        public IPAddress ipaddrIpAddress;
+
         // Status
+        public bool bStopped { get; private set; }
         private bool bScreenChanged;
 
         // Datas
         public Bitmap[] arr_bmpFramesBuffer;
+        public Graphics[] arr_gScreens;
+
+        // Privacy Data
+        private TcpListener tcpliscServer;
+        private List<TcpClient> tcpcliClients;
 
         public Server()
         {
@@ -31,23 +47,118 @@ namespace ServerWin
             iScreenRefreshRate = 0;
 
             bScreenChanged = false;
+            bStopped = true;
 
-            arr_bmpFramesBuffer = new Bitmap[u_iMaxBuffers];
+            arr_bmpFramesBuffer = null;
+            arr_gScreens = null;
+
+            ipaddrIpAddress = c_ipaddrDefaultIpAddress;
+            iServerPort = c_u_iDefaultPort;
+
+            tcpliscServer = new TcpListener(c_ipaddrDefaultIpAddress, iServerPort);
+            tcpcliClients = new List<TcpClient>();
+
+            SetScreenAuto();
+            InitFrameBuffer();
+            InitFrameGraphics();
+        }
+
+        private void StartCapturer()
+        {
+            for (int iFrameIndex = 0; !bStopped;)
+            {
+                if (bScreenChanged)
+                {
+                    InitFrameBuffer();
+                    InitFrameGraphics();
+                }
+
+                // GetFrame
+                arr_gScreens[iFrameIndex].CopyFromScreen(0, 0, 0, 0, arr_bmpFramesBuffer[iFrameIndex].Size);
+
+                // Update
+                Program.viewWindow.BackgroundImage = (Image)arr_bmpFramesBuffer[iFrameIndex].Clone();
+
+                new Thread((object bmpCpy) =>
+                    {
+                        Bitmap bmpBitmapCopy = (Bitmap)bmpCpy;
+
+                        byte[] arr_byteImage = bmpBitmapCopy.RawFormat.Guid.ToByteArray();
+
+                        foreach (TcpClient client in tcpcliClients)
+                        {
+                            client.Client.Send(bmpBitmapCopy.RawFormat.Guid.ToByteArray());
+                        }
+
+                        bmpBitmapCopy.Dispose();
+                    }).Start(arr_bmpFramesBuffer[iFrameIndex].Clone());
+
+                // Loop Configure
+                if (iFrameIndex >= u_iMaxBuffers - 1)
+                {
+                    iFrameIndex = 0;
+                }
+                else
+                    ++iFrameIndex;
+
+                // Fps Controlling
+                Thread.Sleep(1000 / 60);
+            }
+        }
+
+        private void ClientHandler(TcpClient tcpcliClient)
+        {
+
+        }
+
+        private void StartServer()
+        {
+            tcpliscServer.Start();
+
+            for (; !bStopped;)
+            {
+                TcpClient tcpcliClient = tcpliscServer.AcceptTcpClient();
+                tcpcliClients.Add(tcpcliClient);
+
+                new Thread(() => ClientHandler(tcpcliClient)).Start();
+            }
         }
 
         public void Start()
         {
+            if (!bStopped) return;
+            bStopped = false;
 
+            StartCapturer();
+            StartServer();
         }
 
         public void Stop()
         {
+            if (bStopped)
+                return;
 
+            bStopped = true;
         }
 
         public void InitFrameBuffer()
         {
+            arr_bmpFramesBuffer = new Bitmap[u_iMaxBuffers];
 
+            for (int i = 0; i < u_iMaxBuffers; ++i)
+            {
+                arr_bmpFramesBuffer[i] = new Bitmap(iScreenWidth, iScreenHeight);
+            }
+        }
+
+        public void InitFrameGraphics()
+        {
+            arr_gScreens = new Graphics[u_iMaxBuffers];
+
+            for (int i = 0; i < u_iMaxBuffers; ++i)
+            {
+                arr_gScreens[i] = Graphics.FromImage(arr_bmpFramesBuffer[i]);
+            }
         }
 
         public void SetScreen(int screenWidth, int screenHeight, int screenRefreshRate)
