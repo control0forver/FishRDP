@@ -63,23 +63,46 @@ namespace ServerWin
             InitFrameGraphics();
         }
 
+        public void ReleaseBuffer()
+        {
+            for (int i = 0; i < u_iMaxBuffers; i++)
+            {
+                arr_bmpFramesBuffer[i].Dispose();
+                arr_bmpFramesBuffer[i] = null;
+            }
+        }
+        public void ReleaseGraphics()
+        {
+            for (int i = 0; i < u_iMaxBuffers; i++)
+            {
+                arr_gScreens[i].Dispose();
+                arr_gScreens[i] = null;
+            }
+        }
+
         private void StartCapturer()
         {
             for (int iFrameIndex = 0; !bStopped;)
             {
                 if (bScreenChanged)
                 {
+                    ReleaseBuffer();
+                    ReleaseGraphics();
+
                     InitFrameBuffer();
                     InitFrameGraphics();
+
+                    bScreenChanged= false;
                 }
 
                 // GetFrame
                 arr_gScreens[iFrameIndex].CopyFromScreen(0, 0, 0, 0, arr_bmpFramesBuffer[iFrameIndex].Size);
 
                 // Update
-                Program.viewWindow.BackgroundImage = (Image)arr_bmpFramesBuffer[iFrameIndex].Clone();
+                Bitmap bmpCpy = (Bitmap)arr_bmpFramesBuffer[iFrameIndex].Clone();
+                Program.viewWindow.SetFrame(bmpCpy);
 
-                new Thread((object bmpCpy) =>
+                new Thread(() =>
                     {
                         Bitmap bmpBitmapCopy = (Bitmap)bmpCpy;
 
@@ -91,7 +114,8 @@ namespace ServerWin
                         }
 
                         bmpBitmapCopy.Dispose();
-                    }).Start(arr_bmpFramesBuffer[iFrameIndex].Clone());
+                        bmpBitmapCopy = null;
+                    }).Start();
 
                 // Loop Configure
                 if (iFrameIndex >= u_iMaxBuffers - 1)
@@ -102,7 +126,7 @@ namespace ServerWin
                     ++iFrameIndex;
 
                 // Fps Controlling
-                Thread.Sleep(1000 / 60);
+                Thread.Sleep(1000 / iScreenRefreshRate);
             }
         }
 

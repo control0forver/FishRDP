@@ -16,7 +16,7 @@ namespace ServerWin
             Control.CheckForIllegalCrossThreadCalls = false;
 
             Server server = new Server();
-            new Thread(()=> server.Start()).Start();
+            new Thread(() => server.Start()).Start();
 
 
 
@@ -27,17 +27,22 @@ namespace ServerWin
                 "Reftesh Rate: {2}",
                 server.iScreenWidth, server.iScreenHeight, server.iScreenRefreshRate);
 
-            new Thread(()=> Application.Run(viewWindow)).Start();
-            Console.WriteLine("View Window Started");
+            new Thread(() =>
+            {
+                Console.WriteLine("View Window Started");
 
-            Console.WriteLine("Press Any Key to Exit");
-            Console.ReadKey(true);
+                Console.WriteLine("Press Any Key to Exit");
+                Console.ReadKey(true);
 
-            viewWindow.Close();
-            viewWindow.Dispose();
-            server.Stop();
+                viewWindow.Close();
+                viewWindow.Dispose();
+                server.Stop();
 
-            Console.WriteLine("Server Exit");
+                Console.WriteLine("Server Exit");
+
+                Application.Exit();
+            }).Start();
+            Application.Run(viewWindow);
         }
 
     }
