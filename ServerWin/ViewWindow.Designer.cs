@@ -38,7 +38,6 @@
             this.ClientSize = new System.Drawing.Size(550, 398);
             this.Name = "ViewWindow";
             this.Text = "ViewWindow";
-            this.ResizeEnd += new System.EventHandler(this.ViewWindow_ResizeEnd);
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.ViewWindow_Paint);
             this.ResumeLayout(false);
 

@@ -92,7 +92,7 @@ namespace ServerWin
                     InitFrameBuffer();
                     InitFrameGraphics();
 
-                    bScreenChanged= false;
+                    bScreenChanged = false;
                 }
 
                 // GetFrame
@@ -100,21 +100,20 @@ namespace ServerWin
 
                 // Update
                 Bitmap bmpCpy = (Bitmap)arr_bmpFramesBuffer[iFrameIndex].Clone();
-                Program.viewWindow.SetFrame(bmpCpy);
 
                 new Thread(() =>
                     {
-                        Bitmap bmpBitmapCopy = (Bitmap)bmpCpy;
+                        Program.viewWindow.SetFrame(bmpCpy);
 
-                        byte[] arr_byteImage = bmpBitmapCopy.RawFormat.Guid.ToByteArray();
+                        byte[] arr_byteImage = bmpCpy.RawFormat.Guid.ToByteArray();
 
                         foreach (TcpClient client in tcpcliClients)
                         {
-                            client.Client.Send(bmpBitmapCopy.RawFormat.Guid.ToByteArray());
+                            client.Client.Send(bmpCpy.RawFormat.Guid.ToByteArray());
                         }
 
-                        bmpBitmapCopy.Dispose();
-                        bmpBitmapCopy = null;
+                        bmpCpy.Dispose();
+                        bmpCpy = null;
                     }).Start();
 
                 // Loop Configure
